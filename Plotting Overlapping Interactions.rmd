@@ -1,0 +1,296 @@
+---
+title: "Plotting Overlapping Interactions"
+author: "Kaiti"
+date: "March 16, 2017"
+output: pdf_document
+---
+
+```{r}
+byChrom.plot = function(bound, enhs, i){
+  gr.bound = bound[seqnames(bound)==paste("chr",as.character(i),sep="")]
+  ir.TAD = IRanges(start = start(gr.bound), end = end(gr.bound))
+  ir.TAD.qc = IRanges(start = start(gr.bound[width(gr.bound) < 120002]), end = end(gr.bound[width(gr.bound) < 120002]))
+
+  enhs.chr = enhs[seqnames(enhs)==paste("chr",as.character(i),sep="")]
+  ir.enhs = IRanges(start = enhs.chr$chromStart, end = enhs.chr$chromEnd)
+  
+  # normalize the TAD boundaries (all TADs)
+    mid = (start(ir.TAD) + end(ir.TAD))/ 2 
+    endpoint = IRanges(start = c(0, max(enhs.chr$chromEnd)+5), end = c(0, max(enhs.chr$chromEnd)+5))
+    #TAD.10 = c(IRanges(start = mid - 5000, end = mid + 4999) , endpoint)
+    TAD.20 = c(IRanges(start = mid - 10000, end = mid + 9999) , endpoint)
+    #TAD.40 = c(IRanges(start = mid - 20000, end = mid + 19999) , endpoint)
+    
+  # normalize the qcTAD boundaries (=< 120000)
+    #mid.qc = (start(ir.TAD.qc) + end(ir.TAD.qc))/ 2 
+    #endpoint = IRanges(start = c(0, max(enhs.chr$chromEnd)+5), end = c(0, max(enhs.chr$chromEnd)+5))
+    #TAD.10.qc = c(IRanges(start = mid.qc - 5000, end = mid.qc + 4999) , endpoint)
+    #TAD.20.qc = c(IRanges(start = mid.qc - 10000, end = mid.qc + 9999) , endpoint)
+    #TAD.40.qc = c(IRanges(start = mid.qc - 20000, end = mid.qc + 19999) , endpoint)
+    
+  # How many enhancer:promoter interactions cross a TAD boundary?
+    cross = unique(first(findOverlapPairs(ir.enhs, ir.TAD)))
+
+  # How many enhancer:promoter interactions cross a normalized TAD boundary?
+    #intX.10 = unique(first(findOverlapPairs(ir.enhs, TAD.10)))
+    intX.20 = unique(first(findOverlapPairs(ir.enhs, TAD.20))) 
+    #intX.40 = unique(first(findOverlapPairs(ir.enhs, TAD.40)))
+    
+  # How many enhancer:promoter interactions cross a normalized qcTAD boundary?
+    #intX.10.qc = unique(first(findOverlapPairs(ir.enhs, TAD.10.qc)))
+    #intX.20.qc = unique(first(findOverlapPairs(ir.enhs, TAD.20.qc))) 
+    #intX.40.qc = unique(first(findOverlapPairs(ir.enhs, TAD.40.qc)))
+    
+# Plotting stuff
+  sep = 0.5
+  height = 1
+  #xlim = c(0, max(enhs.chr$chromEnd)+5)
+  xlim = c(0, max(end(ir.enhs)))
+  
+  par(mfrow = c(1,1))
+  
+  # Enhancer:Promoter Interactions with TAD boundaries noted and crossing interactions highlighted. 
+  plot.new()
+    bins = disjointBins(IRanges(start(ir.enhs), end(ir.enhs)+1))
+    plot.window(xlim, c(0, max(bins)*(height + sep)))
+  title("All Intersecting Interactions")
+    ybottom = bins*(sep + height) - height
+    rect(start(ir.enhs), ybottom, end(ir.enhs), ybottom + 1)
+    bins = disjointBins(IRanges(start(intX.20), end(intX.20)+1))
+    ybottom = bins*(sep + height) - height
+    rect(start(intX.20), ybottom, end(intX.20), ybottom + 1, col = "light green", border = "light green")
+    rect(start(TAD.20), 0 , end(TAD.20), 25, col = "red", border = "red")
+  axis(1)
+  axis(2)
+}
+```
+
+```{r}
+byChrom.plot(gr.bound, gr.enhs, 1)
+byChrom.plot(gr.bound, gr.enhs, 2)
+byChrom.plot(gr.bound, gr.enhs, 3)
+byChrom.plot(gr.bound, gr.enhs, 4)
+byChrom.plot(gr.bound, gr.enhs, 5)
+byChrom.plot(gr.bound, gr.enhs, 6)
+byChrom.plot(gr.bound, gr.enhs, 7)
+byChrom.plot(gr.bound, gr.enhs, 8)
+byChrom.plot(gr.bound, gr.enhs, 9)
+byChrom.plot(gr.bound, gr.enhs, 10)
+byChrom.plot(gr.bound, gr.enhs, 11)
+byChrom.plot(gr.bound, gr.enhs, 12)
+byChrom.plot(gr.bound, gr.enhs, 13)
+byChrom.plot(gr.bound, gr.enhs, 14)
+byChrom.plot(gr.bound, gr.enhs, 15)
+byChrom.plot(gr.bound, gr.enhs, 16)
+byChrom.plot(gr.bound, gr.enhs, 17)
+byChrom.plot(gr.bound, gr.enhs, 18)
+byChrom.plot(gr.bound, gr.enhs, 19)
+byChrom.plot(gr.bound, gr.enhs, 20)
+byChrom.plot(gr.bound, gr.enhs, 21)
+byChrom.plot(gr.bound, gr.enhs, 22)
+byChrom.plot(gr.bound, gr.enhs, 'X')
+byChrom.plot(gr.bound, gr.enhs, 'Y')
+```
+
+New Plotting Function
+```{r}
+PlotOvlp = function(i,enhs,TAD,plotStart,plotEnd){
+  # Define TAD boundaries and enhancer:promoter interactions in a chromsome specific manner
+  chr.TAD = TAD[seqnames(TAD)==paste("chr",as.character(i),sep="")]
+  ir.TAD = IRanges(start = start(chr.TAD), end = end(chr.TAD))
+  
+  enhs.chr = enhs[seqnames(enhs)==paste("chr",as.character(i),sep="")]
+  ir.enhs = IRanges(start = enhs.chr$chromStart, end = enhs.chr$chromEnd)
+
+  # Collecting Interactions by Type 
+  x = findOverlapPairs(ir.enhs, ir.TAD)
+  x.enhs = first(findOverlapPairs(ir.enhs, ir.TAD))
+  x.tad = (second(findOverlapPairs(ir.enhs, ir.TAD)))
+  max.ovlp = (IRanges(start = pmin(start(first(x)), start(second(x))), end = pmax(end(first(x)), end(second(x)))))
+
+  TAD.interact = unique(x.tad)
+  TAD.crossed = unique(x.tad[start(x.tad) > start(max.ovlp) & end(x.tad) < end(max.ovlp)])
+  
+  sep = 0.5
+  height = 1
+  xlim = c(plotStart,plotEnd)
+  
+  par(mfrow = c(1,1))
+  
+  # Enhancer:Promoter Interactions with TAD boundaries noted and crossing interactions highlighted. 
+  plot.new()
+    bins = disjointBins(IRanges(start(ir.enhs), end(ir.enhs)+1))
+    plot.window(xlim, c(0, max(bins)* (height + sep)))
+  title("All Intersecting Interactions")
+    ybottom = bins * (sep + height) - height
+    rect(start(ir.enhs), ybottom, end(ir.enhs), ybottom + 1)
+    rect(start(ir.TAD),0, end(ir.TAD), 120, border = "red")
+
+    rect(start(TAD.interact), 0, end(TAD.interact), 120, col = "red", border = "red")
+    rect(start(TAD.crossed), 40, end(TAD.crossed), 80, col = "dark red", border = "red")
+     rect(start(x.enhs), ybottom, end(x.enhs), ybottom + 1, col = "light green", border = "dark green")
+  axis(1)
+  axis(2)
+  #return(ir.TAD)
+}
+```
+```{r}
+PlotOvlp(12,gr.enhs,gr.bound,0,133701384)
+```
+```{r}
+PlotOvlp(12,gr.enhs,gr.bound,0,20000000)
+```
+```{r}
+PlotOvlp(12,gr.enhs,gr.bound,10000000,30000000)
+```
+```{r}
+PlotOvlp(12,gr.enhs,gr.bound,51000000,53000000)
+```
+
+```{r}
+PlotGeneOvlp = function(i,enhs,TAD,plotStart,plotEnd){
+  # Define TAD boundaries and enhancer:promoter interactions in a chromsome specific manner
+  chr.TAD = TAD[seqnames(TAD)==paste("chr",as.character(i),sep="")]
+  ir.TAD = IRanges(start = start(chr.TAD), end = end(chr.TAD))
+  
+  enhs.chr = enhs[seqnames(enhs)==paste("chr",as.character(i),sep="")]
+  ir.enhs = IRanges(start = start(enhs.chr), end = end(enhs.chr))
+
+  # Collecting Interactions by Type 
+  x = findOverlapPairs(ir.enhs, ir.TAD)
+  x.enhs = first(findOverlapPairs(ir.enhs, ir.TAD))
+  x.tad = (second(findOverlapPairs(ir.enhs, ir.TAD)))
+  max.ovlp = (IRanges(start = pmin(start(first(x)), start(second(x))), end = pmax(end(first(x)), end(second(x)))))
+
+  TAD.interact = unique(x.tad)
+  TAD.crossed = unique(x.tad[start(x.tad) > start(max.ovlp) & end(x.tad) < end(max.ovlp)])
+  
+  sep = 0.5
+  height = 1
+  xlim = c(plotStart,plotEnd)
+  
+  par(mfrow = c(1,1))
+  
+  # Enhancer:Promoter Interactions with TAD boundaries noted and crossing interactions highlighted. 
+  plot.new()
+    bins = disjointBins(IRanges(start(ir.enhs), end(ir.enhs)+1))
+    plot.window(xlim, c(0, max(bins)* (height + sep)))
+  title("All Intersecting Interactions")
+    ybottom = bins * (sep + height) - height
+    rect(start(ir.enhs), ybottom, end(ir.enhs), ybottom + 1)
+    rect(start(ir.TAD),0, end(ir.TAD), 120, border = "red")
+
+    rect(start(TAD.interact), 0, end(TAD.interact), 5, col = "red", border = "red")
+    rect(start(TAD.crossed), 1, end(TAD.crossed), 2, col = "dark red", border = "red")
+     rect(start(x.enhs), ybottom, end(x.enhs), ybottom + 1, col = "light green", border = "dark green")
+  axis(1)
+  axis(2)
+  #return(ir.TAD)
+}
+```
+```{r}
+PlotGeneOvlp(12,red.hg19,gr.bound, 10000000,30000000)
+```
+
+# Comparing TAD Boundaries From Dixon
+```{r}
+PlotDixonBoundaries = function(i, bound, bound.IMR, bound.hESC, domain.IMR, domain.hESC, plotStart, plotEnd){
+  # Define TAD boundaries in a chromsome specific manner
+  chr.bound = bound[seqnames(bound)==paste("chr",as.character(i),sep="")]
+  bound = IRanges(start = start(chr.bound), end = end(chr.bound))
+  
+  chr.bound.IMR = bound.IMR[seqnames(bound.IMR)==paste("chr",as.character(i),sep="")]
+  bound.IMR = IRanges(start = start(chr.bound.IMR), end = end(chr.bound.IMR))
+  
+  chr.bound.hESC= bound.hESC[seqnames(bound.hESC)==paste("chr",as.character(i),sep="")]
+  bound.hESC = IRanges(start = start(chr.bound.hESC), end = end(chr.bound.hESC))
+  
+  chr.domain.IMR = domain.IMR[seqnames(domain.IMR)==paste("chr",as.character(i),sep="")]
+  domain.IMR = IRanges(start = start(chr.domain.IMR), end = end(chr.domain.IMR))
+  
+  chr.domain.hESC= domain.hESC[seqnames(domain.hESC)==paste("chr",as.character(i),sep="")]
+  domain.hESC = IRanges(start = start(chr.domain.hESC), end = end(chr.domain.hESC))
+
+  par(mfrow = c(2,1))
+  plot.new()
+    xlim = c(plotStart,plotEnd)
+    plot.window(xlim, c(0, 1.2))
+  title("TAD Boundary Elements; hESC")
+    rect(start(bound), 0, end(bound), 1, col = "dark grey", border = "dark grey")
+    #rect(start(bound.IMR),0.3, end(bound.IMR), 0.9, col = "dark purple")
+    rect(start(bound.hESC), 0.1, end(bound.hESC), 0.7, col = "dark blue")
+    
+    #rect(start(domain.IMR), 0.3, end(domain.IMR), 0.8, border = "purple")
+    rect(start(domain.hESC), 0.1, end(domain.hESC), 0.7, border = "blue")
+  axis(1)
+  
+    plot.new()
+    xlim = c(plotStart,plotEnd)
+    plot.window(xlim, c(0, 1.2))
+  title("TAD Boundary Elements; IMR90")
+    rect(start(bound), 0, end(bound), 1, col = "dark grey", border = "dark grey")
+    rect(start(bound.IMR),0.3, end(bound.IMR), 0.9, col = "dark green")
+    #rect(start(bound.hESC), 0.1, end(bound.hESC), 0.8, col = "dark blue")
+    
+    rect(start(domain.IMR), 0.3, end(domain.IMR), 0.9, border = "black")
+    #rect(start(domain.hESC), 0.2, end(domain.hESC), 0.7, border = "blue")
+  axis(1)
+  }
+```
+```{r}
+PlotDixonBoundaries(12, gr.bound, gr.bound.IMR90, gr.bound.hESC, gr.domain.IMR90, gr.domain.hESC, 10000000,30000000)
+```
+```{r}
+PlotDixonBoundaries.bind = function(i, bound, bound.IMR, bound.hESC, domain.IMR, domain.hESC, plotStart, plotEnd){
+  # Define TAD boundaries in a chromsome specific manner
+  chr.bound = bound[seqnames(bound)==paste("chr",as.character(i),sep="")]
+  bound = IRanges(start = start(chr.bound), end = end(chr.bound))
+  
+  chr.bound.IMR = bound.IMR[seqnames(bound.IMR)==paste("chr",as.character(i),sep="")]
+  bound.IMR = IRanges(start = start(chr.bound.IMR), end = end(chr.bound.IMR))
+  
+  chr.bound.hESC= bound.hESC[seqnames(bound.hESC)==paste("chr",as.character(i),sep="")]
+  bound.hESC = IRanges(start = start(chr.bound.hESC), end = end(chr.bound.hESC))
+  
+  chr.domain.IMR = domain.IMR[seqnames(domain.IMR)==paste("chr",as.character(i),sep="")]
+  domain.IMR = IRanges(start = start(chr.domain.IMR), end = end(chr.domain.IMR))
+  
+  chr.domain.hESC= domain.hESC[seqnames(domain.hESC)==paste("chr",as.character(i),sep="")]
+  domain.hESC = IRanges(start = start(chr.domain.hESC), end = end(chr.domain.hESC))
+
+  par(mfrow = c(1,1))
+  plot.new()
+    xlim = c(plotStart,plotEnd)
+    plot.window(xlim, c(0, 1.2))
+  title("TAD Boundary Elements; combined")
+    rect(start(bound), 0, end(bound), 1, col = "dark grey", border = "dark grey")
+    #rect(start(bound.IMR),0.3, end(bound.IMR), 0.9, col = "dark green")
+    #rect(start(bound.hESC), 0.1, end(bound.hESC), 0.7, col = "dark blue")
+    
+    rect(start(domain.IMR), 0.3, end(domain.IMR), 0.9, border = "black")
+    rect(start(domain.hESC), 0.1, end(domain.hESC), 0.7, border = "blue")
+  axis(1)
+
+  }
+```
+```{r}
+PlotDixonBoundaries.bind(12, gr.bound, gr.bound.IMR90, gr.bound.hESC, gr.domain.IMR90, gr.domain.hESC, 10000000,30000000)
+```
+```{r}
+PlotDixonBoundaries.bind(7, gr.bound, gr.bound.IMR90, gr.bound.hESC, gr.domain.IMR90, gr.domain.hESC, 27000000,27500000)
+```
+```{r}
+PlotOvlp(7,gr.enhs,gr.bound,27000000,27500000)
+```
+```{r}
+PlotGeneOvlp(7,red.hg19,gr.bound, 27000000,27500000)
+```
+```{r}
+PlotDixonBoundaries.bind(2, gr.bound, gr.bound.IMR90, gr.bound.hESC, gr.domain.IMR90, gr.domain.hESC, 137000000,141000000)
+```
+```{r}
+PlotOvlp(2,gr.enhs,gr.bound,137000000,141000000)
+```
+```{r}
+PlotGeneOvlp(2,red.hg19,gr.bound, 137000000,141000000)
+```

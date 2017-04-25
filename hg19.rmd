@@ -1,0 +1,187 @@
+---
+title: "hg19 Data"
+author: "Kaiti"
+---
+
+hg19.genes BED file downloaded UCSC
+hg19.csv, .csv file converted from hg19.genes.bed in terminal using ssconvert
+hg19.1.csv, .csv of the isolated first column of hg19.csv, leaves out exon start/stop sites. Contains: strand, chromosome, cdsStart and cdsEnd (Range), txStart and txEnd (in mcol)
+```{r}
+setwd("/home/kaiti/Documents/R Data")
+hg19 = read.csv("hg19.genes", sep="", header = F)
+ir.hg19 = IRanges(start = hg19[,2], end = hg19[,3])
+gr.hg19 = GRanges(ranges = ir.hg19, seqnames = hg19[,1], strand = hg19[,6], exonCount = hg19[,10], Accession = hg19[,4], txStart = hg19[,7], txEnd = hg19[,8])
+
+gr.hg19.qc = gr.hg19[gr.hg19$txEnd-gr.hg19$txStart > 1]
+gr.hg19 = unique(gr.hg19.qc)
+```
+```{r}
+hg38 = read.csv("hg38.genes", sep="", header = F)
+ir.hg38 = IRanges(start = hg38[,2], end = hg38[,3])
+gr.hg38 = GRanges(ranges = ir.hg38, seqnames = hg38[,1], strand = hg38[,6], exonCount = hg38[,10], Accession = hg38[,4], txStart = hg38[,7], txEnd = hg38[,8])
+
+gr.hg38.qc = gr.hg38[gr.hg38$txEnd-gr.hg38$txStart > 1]
+gr.hg38 = unique(gr.hg38.qc)
+```
+```{r}
+setwd("/home/kaiti/Documents/Final Objects")
+save(gr.hg19, file = "gr.hg19.rda")
+save(gr.hg38, file = "gr.hg38.rda")
+```
+
+Modified Crossed Boundary Summary to Analyze the coding sequences of hg19
+```{r}
+XdBound.gene = function(i, frame, genes, TAD){
+  # Define TAD boundaries and enhancer:promoter interactions in a chromsome specific manner
+  chr.TAD = TAD[seqnames(TAD)==paste("chr",as.character(i),sep="")]
+  ir.TAD = IRanges(start = start(chr.TAD), end = end(chr.TAD))
+  
+  genes.chr = genes[seqnames(genes)==paste("chr",as.character(i),sep="")]
+  ir.genes = IRanges(start = start(genes.chr), end = end(genes.chr))
+
+  # Collecting Interactions by Type 
+  x = findOverlapPairs(ir.genes, ir.TAD)
+  x.genes = first(findOverlapPairs(ir.genes, ir.TAD))
+  x.tad = (second(findOverlapPairs(ir.genes, ir.TAD)))
+  max.ovlp = (IRanges(start = pmin(start(first(x)), start(second(x))), end = pmax(end(first(x)), end(second(x)))))
+
+  TAD.interact = unique(x.tad)
+  TAD.crossed = unique(x.tad[start(x.tad) > start(max.ovlp) & end(x.tad) < end(max.ovlp)])
+    
+  # Storing new data
+    chromosome = append(chromosome, as.character(i))
+    gene.num = append(gene.num, length(ir.genes))
+    bound.num = append(bound.num, length(ir.TAD))
+    bound.interact = append(bound.interact, length(TAD.interact))
+    bound.crossed = append(bound.crossed, length(TAD.crossed))
+    
+    frame = data.frame(chromosome, gene.num, bound.num, bound.interact, bound.crossed)
+    return(frame)
+    }
+```
+```{r}
+chromosome = c()
+gene.num = c()
+bound.num = c()
+bound.interact = c()
+bound.crossed = c()
+GeneFrame = data.frame(chromosome, gene.num, bound.num, bound.interact, bound.crossed)
+```
+```{r}
+bound.gene = lapply(chromlist, XdBound.gene, frame=GeneFrame, genes=gr.hg19, TAD=gr.bound)
+  sum.bound.gene = sum.function(bound.gene)
+cdshg19.TAD = sum.bound.gene
+```
+```{r}
+save(cdshg19.TAD, file = "Overlap of 19516 Coding Sequence Genes with TAD Boundaries")
+```
+```{r}
+chromosome.g = cdshg19.TAD$chromosome
+  all.g = cdshg19.TAD$bound.num - cdshg19.TAD$bound.interact
+  interact.g = cdshg19.TAD$bound.interact - cdshg19.TAD$bound.crossed
+  crossed.g = cdshg19.TAD$bound.crossed
+bound.data.g = data.frame(chromosome.g, all.g, interact.g, crossed.g)
+graph.bound.g = melt(bound.data.g, id = "chromosome.g")
+```
+```{r}
+ggplot(graph.bound.g, aes(chromosome.g, value, fill = factor(variable))) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw() +  
+    theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,hjust=0.5), 
+        plot.title=element_text(size=14,face='bold',hjust=0.5),
+        legend.text=element_text(size=11)) +
+  ggtitle("TAD Boundaries by Chromosome: Gene Bodies") +
+  xlab("Chromosome") +
+  ylab("Fraction")
+```
+```{r}
+ggplot(graph.bound.g, aes(chromosome.g, value, fill = factor(variable))) +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw() +  
+    theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,hjust=0.5), 
+        plot.title=element_text(size=14,face='bold',hjust=0.5),
+        legend.text=element_text(size=11)) +
+  ggtitle("TAD Boundaries by Chromosome: Gene Bodies") +
+  xlab("Chromosome") +
+  ylab("Fraction")
+```
+
+
+Modified Crossed Boundary Summary to Analyze the Transcription Sequences of hg19
+```{r}
+XdBound.tx = function(i, frame, genes, TAD){
+  # Define TAD boundaries and enhancer:promoter interactions in a chromsome specific manner
+  chr.TAD = TAD[seqnames(TAD)==paste("chr",as.character(i),sep="")]
+  ir.TAD = IRanges(start = start(chr.TAD), end = end(chr.TAD))
+  
+  genes.chr = genes[seqnames(genes)==paste("chr",as.character(i),sep="")]
+  ir.genes = IRanges(start = genes.chr$txStart, end = genes.chr$txEnd)
+
+  # Collecting Interactions by Type 
+  x = findOverlapPairs(ir.genes, ir.TAD)
+  x.genes = first(findOverlapPairs(ir.genes, ir.TAD))
+  x.tad = (second(findOverlapPairs(ir.genes, ir.TAD)))
+  max.ovlp = (IRanges(start = pmin(start(first(x)), start(second(x))), end = pmax(end(first(x)), end(second(x)))))
+
+  TAD.interact = unique(x.tad)
+  TAD.crossed = unique(x.tad[start(x.tad) > start(max.ovlp) & end(x.tad) < end(max.ovlp)])
+    
+  # Storing new data
+    chromosome = append(chromosome, as.character(i))
+    gene.num = append(gene.num, length(ir.genes))
+    bound.num = append(bound.num, length(ir.TAD))
+    bound.interact = append(bound.interact, length(TAD.interact))
+    bound.crossed = append(bound.crossed, length(TAD.crossed))
+    
+    frame = data.frame(chromosome, gene.num, bound.num, bound.interact, bound.crossed)
+    return(frame)
+    }
+```
+```{r}
+bound.tx = lapply(chromlist, XdBound.tx, frame=GeneFrame, genes=gr.hg19, TAD=gr.bound)
+  sum.bound.gene = sum.function(bound.gene)
+txhg19.TAD = sum.bound.gene
+```
+```{r}
+save(txhg19.TAD, file = "Overlap of 29055 Coding Sequence Genes with TAD Boundaries")
+```
+```{r}
+chromosome.tx = txhg19.TAD$chromosome
+  all.tx = txhg19.TAD$bound.num - txhg19.TAD$bound.interact
+  interact.tx = txhg19.TAD$bound.interact - txhg19.TAD$bound.crossed
+  crossed.tx = txhg19.TAD$bound.crossed
+bound.data.tx = data.frame(chromosome.tx, all.tx, interact.tx, crossed.tx)
+graph.bound.tx = melt(bound.data.tx, id = "chromosome.tx")
+```
+```{r}
+ggplot(graph.bound.tx, aes(chromosome.tx, value, fill = factor(variable))) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw() +  
+    theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,hjust=0.5), 
+        plot.title=element_text(size=14,face='bold',hjust=0.5),
+        legend.text=element_text(size=11)) +
+  ggtitle("TAD Boundaries by Chromosome: Gene Bodies") +
+  xlab("Chromosome") +
+  ylab("Boundary Fraction")
+```
+```{r}
+ggplot(graph.bound.tx, aes(chromosome.tx, value, fill = factor(variable))) +
+  geom_bar(stat = "identity") +
+  scale_fill_brewer(palette = "Paired") +
+  theme_bw() +  
+    theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,hjust=0.5), 
+        plot.title=element_text(size=14,face='bold',hjust=0.5),
+        legend.text=element_text(size=11)) +
+  ggtitle("TAD Boundaries by Chromosome: Gene Bodies") +
+  xlab("Chromosome") +
+  ylab("Boundary Number")
+```
+
+## Using New Genome Assembly
